@@ -12,12 +12,12 @@ const params = {
 passport.use(
     new JwtStrategy(params, async (jwt_payload, done) => {
         try{
-            const user = await User.findById(jwt_payload.id).select("-password") //busca o usuário sem passar senha
+            const user = await User.findById(jwt_payload.id).select("-password")
         
             if(user){
-                return done(null, user); // Se encontrado, passa o usuário
+                return done(null, user); 
             }else{
-                return done(null, false) // Se não encontrado, falha na autenticação
+                return done(null, false) 
             }
 
         }catch(error){

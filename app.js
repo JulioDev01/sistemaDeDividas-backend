@@ -1,5 +1,5 @@
 /* imports */
-require('dotenv').config()
+require('dotenv').config() // Carrega variáveis do arquivo .env
 const express = require('express')
 const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken')
 
 const app = express()
 const passport = require("./auth/passport");
-
 const cors = require('cors');
 
 
@@ -17,17 +16,15 @@ app.use(passport.initialize()); // Inicializa o Passport
 
 // Middleware do CORS
 app.use(cors({
-    origin: 'http://localhost:3000', // Permite apenas o front rodando na porta 3000
+    origin: 'http://localhost:3000',
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 
-//Importa o modelo do usuário e divida
+//Importa os modelos e middlewares
 const User = require('./models/User')
 const Debt = require("./models/Debt");
-
-// Exporta os middlewares
 const { isAdmin } = require('./middlewares/auth')
 
 //importando a rota de dívidas
@@ -45,16 +42,15 @@ app.get("/user/:id",
     isAdmin, 
     async (req, res) => {
     
-    const id = req.params.id // Obtém o ID do usuário da URL
+    const id = req.params.id 
 
-    // Busca o usuário no banco de dados, excluindo o campo senha (-password)
     const user = await User.findById(id, '-password')
 
     if (!user) {
         return res.status(442).json({msg: "Username e/ou senha inválido!"})
     } 
 
-    res.status(200).json({ user }) // Retorna os dados do usuário encontrado
+    res.status(200).json({ user })
 
 })
 
@@ -62,7 +58,6 @@ app.get("/user/:id",
 // Cadastrar usuário
 app.post('/auth/register', async (req, res) => {
 
-    // Extrai os dados do corpo da requisição
     const {username, password, confirmpassword, role} = req.body
 
     //validações
@@ -74,18 +69,15 @@ app.post('/auth/register', async (req, res) => {
         return res.status(442).json({msg: "As senhas não conferem!"})
     }
 
-    // checando se o usuário já existe
-    const userExists = await User.findOne({ username: username }) //findOne é um método do mongoose, para verificar se já tem esse email
+    const userExists = await User.findOne({ username: username }) 
 
     if (userExists) {
         return res.status(442).json({msg: "Por favor, utilize outro username!"})
     }   
 
-    // criando a senha  com bcrypt
-    const salt = await bcrypt.genSalt(12)
-    const passwordHash = await bcrypt.hash(password, salt)
+    const salt = await bcrypt.genSalt(12) // Gera um salt para criptografia
+    const passwordHash = await bcrypt.hash(password, salt) // Hash da senha
 
-    // criando usuário
     const user = new User({
         username, 
         password: passwordHash,
@@ -93,8 +85,7 @@ app.post('/auth/register', async (req, res) => {
     })
 
     try {
-
-        await user.save() // Salva usuário no banco
+        await user.save() 
 
         res
             .status(201)
@@ -118,7 +109,6 @@ app.post('/auth/register', async (req, res) => {
 // Logar Usuário
 app.post('/auth/login', async (req, res) => {
 
-    console.log('Requisição de login recebida:', req.body);
     const {username, password} = req.body
 
     // validações
@@ -130,8 +120,7 @@ app.post('/auth/login', async (req, res) => {
         return res.status(442).json({msg: "A senha é obrigatório!"})
     }
 
-    // chequando se o usuário existe
-    const user = await User.findOne({ username: username }) //findOne é um método do mongoose, para verificar se já tem esse email
+    const user = await User.findOne({ username: username })
 
     if (!user) {
         return res.status(442).json({msg: "Username e/ou senha inválido!"})
@@ -147,9 +136,8 @@ app.post('/auth/login', async (req, res) => {
 
     try {
 
-        const secret = process.env.SECRET // Obtém chave secreta do .env
+        const secret = process.env.SECRET
 
-        // Gera token JWT
         const token = jwt.sign(
             {
                 id: user._id,
@@ -161,8 +149,6 @@ app.post('/auth/login', async (req, res) => {
         res.status(200).json({msg: 'Autentificação realizada com sucesso!', token, role: user.role, userId: user._id, username: user.username})
 
     }catch(err){ 
-        console.log(err)
-
         res
             .status(500)
             .json({
@@ -175,6 +161,7 @@ app.post('/auth/login', async (req, res) => {
 app.put('/user/:id', 
     passport.authenticate("jwt", { session: false }), 
     async (req, res) => {
+
     const {id} = req.params
     const {username, password, role} = req.body
 
@@ -187,7 +174,6 @@ app.put('/user/:id',
             return res.status(403).json({ msg: "Acesso negado!" })
         }
 
-        // Atualiza os campos apenas se foram enviados na requisição
         if (username) {
             const usernameExists = await User.findOne({ username })
             if (usernameExists && usernameExists.id !== id) {
@@ -226,10 +212,12 @@ app.get('/users',
     }
 })
 
-// Excluir usuário e suas dívidas (Admin ou próprio usuário)
+// Excluir usuário e suas dívidas 
 app.delete('/user/:id', 
     passport.authenticate("jwt", { session: false }), 
+    isAdmin,
     async (req, res) => {
+
     const {id} = req.params
 
     try{
@@ -238,15 +226,12 @@ app.delete('/user/:id',
             return res.status(404).json({ msg: "Usuário não encontrado" });
         }
             
-        // Verifica se o usuário autenticado é o dono da conta ou um admin
         if (req.user.id !== id && req.user.role !== 'admin') {
             return res.status(403).json({ msg: "Acesso negado!" })
         }
 
         // Remove as dívidas do usuário antes de excluí-lo
         await Debt.deleteMany({ userId: id })
-
-        // Remove o usuário do banco de dados
         await User.findByIdAndDelete(id)
 
         res.status(200).json({ msg: "Usuário e suas dívidas foram excluídos!" })
@@ -258,7 +243,6 @@ app.delete('/user/:id',
 })
 
 
-// Credenciais do banco de dados obtidas do arquivo .env
 const dbUser = process.env.DB_USER
 const dbPassword = process.env.DB_PASS
 const acess = process.env.ACESS
@@ -267,6 +251,5 @@ const acess = process.env.ACESS
 mongoose
     .connect(`mongodb+srv://${dbUser}:${dbPassword}@${acess}`)
     .then(() => {
-        // Inicia o servidor na porta 3001 após a conexão bem-sucedida com o banco
         app.listen(3001)
 }).catch((err) => console.log(err))

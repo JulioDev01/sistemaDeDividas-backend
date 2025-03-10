@@ -1,10 +1,9 @@
 const express = require('express')
 const Debt = require('../models/Debt')
-const { checkToken, isAdmin } = require('../middlewares/auth')
-
+const { isAdmin } = require('../middlewares/auth')
 const router = express.Router()
-
 const passport = require("../auth/passport");
+
 router.use(passport.initialize()); // Inicializa o Passport
 
 //Criar dívida (apenas Adms)
@@ -12,7 +11,6 @@ router.post('/add',
     passport.authenticate("jwt", { session: false }), 
     isAdmin, async(req, res) => {
 
-    // Extrai os dados do corpo da requisição
     const { userId, name, value, dueDate} = req.body
 
     //Validações
@@ -21,7 +19,6 @@ router.post('/add',
     }
 
     try {
-        // Cria uma nova dívida associada a um usuário e salva no banco
         const debt = new Debt ({ userId, name, value, dueDate})
         await debt.save()
 
@@ -38,12 +35,12 @@ router.post('/add',
 
 })
 
-//Listar dívidas (Adms ve todas e o usuário vê as suas)
+//Listar dívidas
 router.get('/:userId', 
     passport.authenticate("jwt", { session: false }), 
     async (req, res) => {
-    const {userId} = req.params // Obtém o ID do usuário a partir dos parâmetros da URL
 
+    const {userId} = req.params
     try{
         if (req.user.role === "admin") {
             debts = await Debt.find(); 
@@ -64,15 +61,15 @@ router.put('/:debtId',
     passport.authenticate("jwt", { session: false }), 
     async (req, res) => {
         
-    const {debtId} = req.params // Obtém o ID da dívida a partir dos parâmetros da URL
-    const {status} = req.body // Obtém o novo status enviado no corpo da requisição
+    const {debtId} = req.params 
+    const {status} = req.body 
 
     if (!['pendente', 'agendado', 'pago'].includes(status)) {
         return res.status(422).json({ msg: 'Status inválido!' })
     }
 
     try{
-        const debt = await Debt.findById(debtId) // Busca a dívida pelo ID
+        const debt = await Debt.findById(debtId) 
         if (!debt) return res.status(404).json({ msg: 'Dívida não encontrada!' })
 
         // Verifica se o usuário é admin ou se está tentando alterar uma dívida própria
@@ -94,29 +91,27 @@ router.put('/:debtId',
 // Editar dívida (Apenas Admins)
 router.put('/:debtId/edit',
     passport.authenticate("jwt", { session: false }),
+    isAdmin,
     async (req, res) => {
 
-    const { debtId } = req.params; // Obtém o ID da dívida da URL
-    const { userId, name, value, dueDate, status } = req.body; // Obtém os dados do corpo da requisição
+    const { debtId } = req.params; 
+    const { userId, name, value, dueDate, status } = req.body;
 
-    // Verifica se o usuário é admin
     if (req.user.role !== "admin") {
         return res.status(403).json({ msg: "Apenas administradores podem editar dívidas!" });
     }
 
-    // Verifica se todos os campos foram preenchidos
     if (!userId || !name || !value || !dueDate || !status) {
         return res.status(422).json({ msg: "Todos os campos são obrigatórios!" });
     }
 
     try {
-        const debt = await Debt.findById(debtId); // Busca a dívida no banco
+        const debt = await Debt.findById(debtId);
 
         if (!debt) {
             return res.status(404).json({ msg: "Dívida não encontrada!" });
         }
 
-        // Atualiza os campos
         debt.userId = userId;
         debt.name = name;
         debt.value = value;
@@ -139,7 +134,7 @@ router.delete('/:debtId',
     isAdmin, 
     async (req, res) => {
             
-        const {debtId} = req.params // Obtém o ID da dívida a partir dos parâmetros da URL
+        const {debtId} = req.params 
 
         try{
             // Busca e deleta a dívida pelo ID
