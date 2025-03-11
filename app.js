@@ -175,11 +175,11 @@ app.put('/user/:id',
         }
 
         if (username) {
-            const usernameExists = await User.findOne({ username })
-            if (usernameExists && usernameExists.id !== id) {
-                return res.status(422).json({ msg: "Username já cadastrado!" })
+            const usernameExists = await User.findOne({ username });
+            if (usernameExists && String(usernameExists._id) !== String(id)) {
+                return res.status(422).json({ msg: "Username já cadastrado!" });
             }
-            user.username = username
+            user.username = username;
         }
 
         if (password) {
