@@ -1,9 +1,11 @@
 /* imports */
 require('dotenv').config() // Carrega variáveis do arquivo .env
 const express = require('express')
-const mongoose = require('mongoose')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const { Sequelize } = require('sequelize')
+const sequelize = require('./config/db');
+
 
 const app = express()
 const passport = require("./auth/passport");
@@ -243,13 +245,17 @@ app.delete('/user/:id',
 })
 
 
-const dbUser = process.env.DB_USER
-const dbPassword = process.env.DB_PASS
-const acess = process.env.ACESS
-
 // Conexão com o banco de dados MongoDB
-mongoose
-    .connect(`mongodb+srv://${dbUser}:${dbPassword}@${acess}`)
+sequelize.authenticate()
     .then(() => {
-        app.listen(3001)
-}).catch((err) => console.log(err))
+        console.log('Conexão com o MySQL estabelecida com sucesso!');
+        return sequelize.sync({ alter: true })
+    })
+    .then(() => {
+        app.listen(3001, () => {
+            console.log('Servidor rodando na porta 3001');
+        })
+    })
+    .catch(err => {
+        console.error('Erro ao conectar ao MySQL:', err);
+    })

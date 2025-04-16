@@ -1,11 +1,31 @@
-const mongoose = require('mongoose')
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/db');
+const User = require('./User');
 
-const DebtSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true },
-    value: { type: Number, required: true },
-    dueDate: { type: Date, required: true },
-    status: { type: String, enum:['pendente', 'agendado', 'pago'], default:'pendente' },
-})
 
-module.exports = mongoose.model('Debt', DebtSchema)
+const Debt = sequelize.define('Debt', {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    value: {
+      type: DataTypes.FLOAT,
+      allowNull: false
+    },
+    dueDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: false
+    },
+    status: {
+      type: DataTypes.ENUM('pendente', 'agendado', 'pago'),
+      defaultValue: 'pendente'
+    }
+  }, {
+    tableName: 'debts'
+  });
+  
+// Relacionamento: Um para muitos - usuário pode ter muitas dívidas
+User.hasMany(Debt, { foreignKey: 'userId' });
+Debt.belongsTo(User, { foreignKey: 'userId' });
+  
+module.exports = Debt;
