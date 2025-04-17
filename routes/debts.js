@@ -19,9 +19,7 @@ router.post('/add',
     }
 
     try {
-        const debt = new Debt ({ userId, name, value, dueDate})
-        await debt.save()
-
+        const debt = await Debt.create({ userId, name, value, dueDate });
         res.status(201).json({ msg: 'Dívida criada com sucesso!', debt })
     } catch(error) {
         console.log(error)
@@ -42,12 +40,14 @@ router.get('/:userId',
 
     const {userId} = req.params
     try{
+        let debts = [];
+
         if (req.user.role === "admin") {
-            debts = await Debt.find(); 
-        } else if (req.user.id === userId) { 
-            debts = await Debt.find({ userId });
+          debts = await Debt.findAll();
+        } else if (req.user.id === userId) {
+          debts = await Debt.findAll({ where: { userId } });
         } else {
-            return res.status(403).json({ msg: "Acesso negado!" });
+          return res.status(403).json({ msg: "Acesso negado!" });
         }
 
         res.status(200).json({ debts });
@@ -69,11 +69,11 @@ router.put('/:debtId',
     }
 
     try{
-        const debt = await Debt.findById(debtId) 
+        const debt = await Debt.findByPk(debtId) 
         if (!debt) return res.status(404).json({ msg: 'Dívida não encontrada!' })
 
         // Verifica se o usuário é admin ou se está tentando alterar uma dívida própria
-        if (req.user.role !== 'admin' && debt.userId.toString() !== req.user.id) {
+        if (req.user.role !== 'admin' && String(debt.userId) !== String(req.user.id)) {
             return res.status(403).json({ msg: 'Acesso negado!' })
         }    
 
@@ -106,7 +106,7 @@ router.put('/:debtId/edit',
     }
 
     try {
-        const debt = await Debt.findById(debtId);
+        const debt = await Debt.findByPk(debtId);
 
         if (!debt) {
             return res.status(404).json({ msg: "Dívida não encontrada!" });
@@ -138,7 +138,8 @@ router.delete('/:debtId',
 
         try{
             // Busca e deleta a dívida pelo ID
-            await Debt.findByIdAndDelete(debtId)
+            const deleted = await Debt.destroy({ where: { id: debtId } });
+            if (!deleted) return res.status(404).json({ msg: 'Dívida não encontrada.' });
             res.status(200).json({ msg: 'Dívida excluída com sucesso!' })
         }catch(error){
             res.status(500).json({ msg: 'Erro ao excluir dívida.' })

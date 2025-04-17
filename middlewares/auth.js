@@ -12,7 +12,7 @@ exports.isAdmin = async (req, res, next) => {
         }        
 
         // Caso contrário, verifica no banco
-        const user = await User.findById(req.user.id)
+        const user = await User.findByPk(req.user.id)
 
         if (!user || user.role !== 'admin') {
             console.log("Acesso negado: não é admin!")

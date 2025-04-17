@@ -3,7 +3,6 @@ require('dotenv').config() // Carrega variáveis do arquivo .env
 const express = require('express')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { Sequelize } = require('sequelize')
 const sequelize = require('./config/db');
 
 
@@ -46,7 +45,9 @@ app.get("/user/:id",
     
     const id = req.params.id 
 
-    const user = await User.findById(id, '-password')
+    const user = await User.findByPk(id, {
+        attributes: { exclude: ['password'] }
+      })      
 
     if (!user) {
         return res.status(442).json({msg: "Username e/ou senha inválido!"})
@@ -71,7 +72,7 @@ app.post('/auth/register', async (req, res) => {
         return res.status(442).json({msg: "As senhas não conferem!"})
     }
 
-    const userExists = await User.findOne({ username: username }) 
+    const userExists = await User.findOne({ where: { username: username } });
 
     if (userExists) {
         return res.status(442).json({msg: "Por favor, utilize outro username!"})
@@ -122,7 +123,7 @@ app.post('/auth/login', async (req, res) => {
         return res.status(442).json({msg: "A senha é obrigatório!"})
     }
 
-    const user = await User.findOne({ username: username })
+    const user = await User.findOne({ where: { username: username } });
 
     if (!user) {
         return res.status(442).json({msg: "Username e/ou senha inválido!"})
@@ -142,13 +143,13 @@ app.post('/auth/login', async (req, res) => {
 
         const token = jwt.sign(
             {
-                id: user._id,
+                id: user.id,
                 role: user.role,
             },
             secret,
         )
 
-        res.status(200).json({msg: 'Autentificação realizada com sucesso!', token, role: user.role, userId: user._id, username: user.username})
+        res.status(200).json({msg: 'Autentificação realizada com sucesso!', token, role: user.role, userId: user.id, username: user.username})
 
     }catch(err){ 
         res
@@ -168,7 +169,7 @@ app.put('/user/:id',
     const {username, password, role} = req.body
 
     try {
-        const user = await User.findById(id)
+        const user = await User.findByPk(id)
         if (!user) return res.status(404).json({ msg: "Usuário não encontrado!" })
 
         //Verifica se o usuário é dono da conta ou Admin
@@ -177,8 +178,8 @@ app.put('/user/:id',
         }
 
         if (username) {
-            const usernameExists = await User.findOne({ username });
-            if (usernameExists && String(usernameExists._id) !== String(id)) {
+            const usernameExists = await User.findOne({ where: { username } });
+            if (usernameExists && String(usernameExists.id) !== String(id)) {
                 return res.status(422).json({ msg: "Username já cadastrado!" });
             }
             user.username = username;
@@ -207,7 +208,9 @@ app.get('/users',
     passport.authenticate("jwt", { session: false }), 
     isAdmin, async (req, res) => {
     try{
-        const users = await User.find().select('-password')
+        const users = await User.findAll({
+            attributes: { exclude: ['password'] }
+          })          
         res.status(200).json({ users })
     } catch(error) {
         res.status(500).json({ msg: "Erro ao buscar usuários." })
@@ -223,7 +226,7 @@ app.delete('/user/:id',
     const {id} = req.params
 
     try{
-        const user = await User.findById(id);
+        const user = await User.findByPk(id);
         if (!user) {
             return res.status(404).json({ msg: "Usuário não encontrado" });
         }
@@ -233,8 +236,8 @@ app.delete('/user/:id',
         }
 
         // Remove as dívidas do usuário antes de excluí-lo
-        await Debt.deleteMany({ userId: id })
-        await User.findByIdAndDelete(id)
+        await Debt.destroy({ where: { userId: id } });
+        await User.destroy({ where: { id } });
 
         res.status(200).json({ msg: "Usuário e suas dívidas foram excluídos!" })
 
@@ -245,7 +248,7 @@ app.delete('/user/:id',
 })
 
 
-// Conexão com o banco de dados MongoDB
+// Conexão com o banco de dados MySQL
 sequelize.authenticate()
     .then(() => {
         console.log('Conexão com o MySQL estabelecida com sucesso!');
